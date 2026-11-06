@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Car Comparison Table — Pakistan</title>
+<style>
+  :root { --navy:#0B1F3A; --blue:#1769AA; --cyan:#20A4D8; --sky:#EAF6FC; --white:#fff; --carbon:#111827; --slate:#64748B; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--sky); color:var(--carbon); padding:24px 16px 48px; }
+  .wrap { max-width:1100px; margin:0 auto; }
+  header { text-align:center; margin-bottom:20px; }
+  header h1 { color:var(--navy); font-size:1.9rem; margin-bottom:6px; }
+  header p { color:var(--slate); max-width:640px; margin:0 auto; font-size:.95rem; }
+  .picker { background:var(--white); border:1px solid #dbe7f0; border-radius:12px; padding:16px 18px; margin-bottom:20px; }
+  .picker h2 { font-size:1rem; color:var(--navy); margin-bottom:10px; }
+  .cars { display:flex; flex-wrap:wrap; gap:8px; }
+  .cars label { display:inline-flex; align-items:center; gap:6px; background:var(--sky); border:1px solid #cfe3ef; border-radius:999px; padding:7px 12px; font-size:.9rem; cursor:pointer; user-select:none; }
+  .cars label:has(input:checked) { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .cars input { accent-color:var(--blue); }
+  .hint { font-size:.85rem; color:var(--slate); margin-top:10px; }
+  .table-wrap { overflow-x:auto; background:var(--white); border:1px solid #dbe7f0; border-radius:12px; }
+  table { width:100%; border-collapse:collapse; min-width:640px; }
+  th, td { padding:11px 12px; text-align:left; border-bottom:1px solid #e6eef4; font-size:.93rem; }
+  thead th { background:var(--navy); color:#fff; position:sticky; top:0; }
+  thead th:first-child { border-radius:12px 0 0 0; }
+  thead th:last-child { border-radius:0 12px 0 0; }
+  tbody th { color:var(--navy); background:#f4f9fc; white-space:nowrap; }
+  td.best { background:#e7f7ee; font-weight:700; color:#14532d; }
+  td.best::after { content:" ★"; color:#16a34a; }
+  .winner { margin-top:16px; background:var(--white); border:1px solid #dbe7f0; border-left:5px solid var(--cyan); border-radius:10px; padding:14px 16px; font-size:.95rem; }
+  .winner strong { color:var(--navy); }
+  .note { margin-top:16px; font-size:.85rem; color:var(--slate); line-height:1.5; }
+  .empty { padding:28px; text-align:center; color:var(--slate); }
+  @media (max-width:600px){ header h1{font-size:1.45rem;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🚗 Car Comparison Table — Pakistan</h1>
+    <p>Pick up to 3 cars and compare price, engine, mileage, safety and features side by side. The best value in each row is highlighted.</p>
+  </header>
+
+  <section class="picker">
+    <h2>Choose cars to compare (2–3)</h2>
+    <div class="cars" id="carPicker"></div>
+    <p class="hint">Tip: uncheck a car to remove it. "Best" means lowest price, highest mileage/power, or most airbags — it is a guide, not a buying recommendation.</p>
+  </section>
+
+  <div class="table-wrap" id="tableWrap"></div>
+  <div class="winner" id="winnerBox"></div>
+
+  <p class="note"><strong>Price note:</strong> prices below are <em>indicative ex-showroom estimates in PKR, rounded, as of November 2026</em> — they are NOT live prices. Actual prices change with taxes, dealer charges and model-year updates, so always confirm with an authorised dealer before buying. Specs are the commonly listed figures for the named variants; trim details may vary.</p>
+</div>
+
+<script>
+const CARS = [
+  { id:"alto",    name:"Suzuki Alto AGS",        price:2995000,  engine:"660cc",  power:39,  mileage:22, transmission:"AGS (Auto)", seats:4, airbags:2, fuel:"Petrol",    boot: "—",     body:"Hatchback" },
+  { id:"swift",   name:"Suzuki Swift GLX CVT",  price:4694000,  engine:"1200cc", power:82,  mileage:16, transmission:"CVT (Auto)", seats:5, airbags:2, fuel:"Petrol",    boot:"268 L",  body:"Hatchback" },
+  { id:"yaris",   name:"Toyota Yaris ATIV CVT", price:4999000,  engine:"1500cc", power:106, mileage:15, transmission:"CVT (Auto)", seats:5, airbags:2, fuel:"Petrol",    boot:"476 L",  body:"Sedan" },
+  { id:"city",    name:"Honda City Aspire 1.5", price:5849000,  engine:"1500cc", power:118, mileage:15, transmission:"CVT (Auto)", seats:5, airbags:2, fuel:"Petrol",    boot:"506 L",  body:"Sedan" },
+  { id:"corolla", name:"Toyota Corolla Grande", price:7299000,  engine:"1800cc", power:138, mileage:13, transmission:"CVT (Auto)", seats:5, airbags:2, fuel:"Petrol",    boot:"470 L",  body:"Sedan" },
+  { id:"civic",   name:"Honda Civic Oriel",     price:8999000,  engine:"1800cc", power:155, mileage:12, transmission:"CVT (Auto)", seats:5, airbags:6, fuel:"Petrol",    boot:"497 L",  body:"Sedan" },
+  { id:"tucson",  name:"Hyundai Tucson GLS",    price:10999000, engine:"2000cc", power:155, mileage:11, transmission:"6-spd Auto", seats:5, airbags:6, fuel:"Petrol",    boot:"513 L",  body:"SUV" },
+  { id:"sportage",name:"Kia Sportage AWD",      price:11999000, engine:"2000cc", power:155, mileage:11, transmission:"6-spd Auto", seats:5, airbags:6, fuel:"Petrol",    boot:"466 L",  body:"SUV" },
+];
+
+const ROWS = [
+  { key:"price",        label:"Price (PKR, indicative)", fmt:v=>"Rs " + v.toLocaleString("en-PK"), lower:true },
+  { key:"engine",       label:"Engine" },
+  { key:"power",        label:"Power (hp)", higher:true },
+  { key:"mileage",      label:"Mileage (km/l, approx.)", higher:true },
+  { key:"transmission", label:"Transmission" },
+  { key:"fuel",         label:"Fuel" },
+  { key:"body",         label:"Body type" },
+  { key:"seats",        label:"Seats", higher:true },
+  { key:"airbags",      label:"Airbags", higher:true },
+  { key:"boot",         label:"Boot space" },
+];
+
+const picker = document.getElementById("carPicker");
+const tableWrap = document.getElementById("tableWrap");
+const winnerBox = document.getElementById("winnerBox");
+let selected = ["alto", "yaris", "civic"]; // default comparison
+
+CARS.forEach(car => {
+  const label = document.createElement("label");
+  const box = document.createElement("input");
+  box.type = "checkbox";
+  box.value = car.id;
+  box.checked = selected.includes(car.id);
+  box.addEventListener("change", () => {
+    if (box.checked) {
+      if (selected.length >= 3) { box.checked = false; alert("You can compare up to 3 cars at a time."); return; }
+      selected.push(car.id);
+    } else {
+      selected = selected.filter(id => id !== car.id);
+    }
+    render();
+  });
+  label.append(box, document.createTextNode(car.name));
+  picker.appendChild(label);
+});
+
+function fmtPKR(n){ return "Rs " + n.toLocaleString("en-PK"); }
+
+function render(){
+  const cars = CARS.filter(c => selected.includes(c.id));
+  if (cars.length < 2) {
+    tableWrap.innerHTML = '<p class="empty">Please select at least 2 cars to compare.</p>';
+    winnerBox.textContent = "";
+    return;
+  }
+  let html = "<table><thead><tr><th>Specification</th>";
+  cars.forEach(c => html += "<th>" + c.name + "</th>");
+  html += "</tr></thead><tbody>";
+  ROWS.forEach(row => {
+    html += "<tr><th>" + row.label + "</th>";
+    let bestVal = null;
+    if (row.higher || row.lower) {
+      const vals = cars.map(c => c[row.key]).filter(v => typeof v === "number");
+      if (vals.length) bestVal = row.higher ? Math.max(...vals) : Math.min(...vals);
+    }
+    cars.forEach(c => {
+      const raw = c[row.key];
+      const text = row.fmt ? row.fmt(raw) : raw;
+      const isBest = bestVal !== null && raw === bestVal && cars.filter(x => x[row.key] === bestVal).length === 1;
+      html += '<td class="' + (isBest ? "best" : "") + '">' + text + "</td>";
+    });
+    html += "</tr>";
+  });
+  html += "</tbody></table>";
+  tableWrap.innerHTML = html;
+
+  // Simple verdict: cheapest + best mileage + most power count
+  const scores = {};
+  cars.forEach(c => scores[c.id] = 0);
+  const cheapest = cars.reduce((a,b) => a.price < b.price ? a : b);
+  const bestMileage = cars.reduce((a,b) => a.mileage > b.mileage ? a : b);
+  const mostPower = cars.reduce((a,b) => a.power > b.power ? a : b);
+  scores[cheapest.id]++; scores[bestMileage.id]++; scores[mostPower.id]++;
+  const top = cars.reduce((a,b) => scores[a.id] >= scores[b.id] ? a : b);
+  winnerBox.innerHTML = "<strong>Quick take:</strong> " + cheapest.name + " is the cheapest, " +
+    bestMileage.name + " gives the best mileage, and " + mostPower.name +
+    " has the most power. Overall best all-rounder in this set: <strong>" + top.name + "</strong>.";
+}
+render();
+</script>
+</body>
+</html>
